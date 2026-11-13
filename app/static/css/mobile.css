@@ -1,0 +1,199 @@
+/* ============================================================
+   mobile.css — responsive overrides for Bot Farm Management Tools
+   Link LAST in <head> after all other CSS files
+   ============================================================ */
+
+/* ── MOBILE: accent swatches relocated into sidebar ─────────── */
+#sideAccentSwatches {
+  display: none;
+}
+
+
+/* ============================================================
+   MOBILE STYLES  ≤768px
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ── 1. Sidebar: slide-in drawer ────────────────────────────── */
+  .nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1999;
+  }
+  .nav-overlay.open { display: block; }
+
+ .side-nav {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2000;
+    width: 230px; /* Fixed: Removed !important so desktop overrides work */
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+    padding-bottom: 5rem;
+  }
+  
+  /* Scroll the nav list itself, not the whole sidebar */
+  .side-nav nav {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .side-nav.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Hide desktop collapse button on mobile */
+  .btn-collapse { display: none !important; }
+
+  /* Restore text labels inside open drawer */
+  .side-nav .side-brand-text { display: inline !important; }
+  .side-nav .side-brand-abbr { display: none !important; }
+  .side-nav .nav-item span   { display: inline !important; }
+  .side-nav .nav-item { padding: 0.6rem 0.75rem; font-size: 0.9rem; }
+
+  /* Accent swatches pinned to bottom of sidebar on mobile */
+  #sideAccentSwatches {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    position: absolute;
+    bottom: 1rem;
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+  #sideAccentSwatches .swatch-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    width: 100%;
+    margin-bottom: 0.2rem;
+  }
+
+  /* Shell: sidebar no longer reserves space */
+  .shell { display: block; }
+  .shell-main { width: 100%; }
+
+  /* ── 2. Topbar ─────────────────────────────────────────────── */
+  .app-topbar {
+    padding: 0.55rem 0.85rem;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+  .app-topbar h1 { font-size: 0.88rem; flex: 1; min-width: 0; }
+
+  /* Hamburger (injected by JS) */
+  #btnMobileNav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--btn, var(--surface2));
+    color: var(--text);
+    cursor: pointer;
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  /* Hide accent swatches from topbar on mobile — moved into sidebar */
+  .accent-swatches { display: none !important; }
+
+  /* Compact profile + theme buttons */
+  .profile-btn { padding: 0.4rem 0.55rem; font-size: 0.82rem; }
+  #userDisplay  { display: none; }
+  #themeToggle  { padding: 0.4rem 0.55rem; font-size: 0.82rem; }
+  .tb-right { gap: 0.35rem; flex-wrap: nowrap; }
+
+  /* ── 3. Views ──────────────────────────────────────────────── */
+  .views-wrap { padding: 0.85rem 0.75rem 3rem; }
+
+  /* ── 4. Dashboard ──────────────────────────────────────────── */
+  .dash-hero p { display: none; }
+  .dash-hero h2 { font-size: 1.05rem; margin: 0; }
+  .dash-tabs { gap: 0.35rem; }
+  .dash-tabs button { padding: 0.45rem 0.75rem; font-size: 0.8rem; }
+
+  /* ── 5. Toolbar ────────────────────────────────────────────── */
+  .toolbar { flex-wrap: wrap; gap: 0.45rem; }
+  .toolbar button { font-size: 0.8rem; padding: 0.45rem 0.7rem; }
+  .toolbar .muted { font-size: 0.72rem; width: 100%; }
+
+  /* ── 6. Main table ─────────────────────────────────────────── */
+  .dash-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-table table { min-width: 540px; }
+  .dash-table th, .dash-table td {
+    white-space: nowrap;
+    font-size: 0.78rem;
+    padding: 0.55rem 0.6rem;
+  }
+
+  /* ── 7. Audit table ────────────────────────────────────────── */
+  .audit-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .audit-panel table { min-width: 680px; }
+  .audit-panel th, .audit-panel td {
+    font-size: 0.76rem;
+    padding: 0.5rem;
+    white-space: nowrap;
+  }
+
+  /* ── 8. Pager ──────────────────────────────────────────────── */
+  .pager { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+
+  /* ── 9. Forms ──────────────────────────────────────────────── */
+  .form-grid { max-width: 100%; }
+  /* ≥16px prevents iOS auto-zoom on focus */
+  .form-grid input, .form-grid textarea { font-size: 1rem; }
+
+  /* ── 10. Query Builder ─────────────────────────────────────── */
+  #view-qb .card-pad { padding: 0.75rem 0.85rem; }
+  #qbCols { min-width: unset !important; width: 100% !important; }
+  #qbInteractiveGridToolbar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.6rem !important;
+  }
+  #qbInteractiveGridToolbar select,
+  #qbInteractiveGridToolbar input[type="text"] { width: 100% !important; }
+  #qbResultsContainer { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── 11. Modal ─────────────────────────────────────────────── */
+  .modal-content {
+    width: calc(100vw - 2rem);
+    margin: 1rem;
+    padding: 1.25rem 1rem;
+  }
+  .modal-actions { flex-direction: column; gap: 0.5rem; }
+  .modal-actions button { width: 100%; }
+
+  /* ── 12. Actions popover ───────────────────────────────────── */
+  .actions-popover {
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    min-width: unset !important;
+    bottom: 1rem !important;
+    top: auto !important;
+  }
+
+  /* ── 13. Search ────────────────────────────────────────────── */
+  #tableSearch { max-width: 100% !important; width: 100% !important; }
+}
+
+/* ── Desktop: hamburger + overlay always hidden ──────────────── */
+@media (min-width: 769px) {
+  #btnMobileNav  { display: none !important; }
+  .nav-overlay   { display: none !important; }
+  #sideAccentSwatches { display: none !important; }
+}

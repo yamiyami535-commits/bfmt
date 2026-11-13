@@ -1,0 +1,109 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin sign in</title>
+  <style>
+    :root[data-theme="dark"] {
+      --bg: #0f1419;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --input-bg: #0d1117;
+      --btn: #238636;
+    }
+    :root[data-theme="light"] {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --input-bg: #ffffff;
+      --btn: #1a7f37;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100vh; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    body { display: grid; place-items: center; padding: 1rem; position: relative; }
+    .theme-corner { position: fixed; top: 0.75rem; right: 0.75rem; }
+    .theme-corner button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: min(92vw, 380px); }
+    h1 { font-size: 1.1rem; margin: 0 0 1.25rem; font-weight: 600; }
+    label { display: block; font-size: 0.85rem; margin-bottom: 0.35rem; color: var(--muted); }
+    input { width: 100%; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: inherit; margin-bottom: 0.9rem; }
+    button[type="submit"] { width: 100%; padding: 0.6rem; border: none; border-radius: 8px; background: var(--btn); color: #fff; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .err { color: #f85149; font-size: 0.85rem; margin-top: 0.75rem; min-height: 1.2rem; }
+    :root[data-theme="light"] .err { color: #cf222e; }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 1rem; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div class="theme-corner">
+    <button type="button" id="themeToggle" title="Light or dark">Theme</button>
+  </div>
+  <div class="card">
+    <h1>RPA - Bot Farm Management Tools</h1>
+    <form id="f">
+      <label for="u">Username</label>
+      <input id="u" name="username" autocomplete="username" required />
+      <label for="p">Password</label>
+      <input id="p" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit" id="btn">Sign in</button>
+    </form>
+    <div class="err" id="err"></div>
+    <p class="hint">Token is stored in sessionStorage for this browser session. Use HTTPS in production.</p>
+  </div>
+  <script>
+    const THEME_KEY = "hub_theme";
+    function applyTheme() {
+      const t = localStorage.getItem(THEME_KEY) || "dark";
+      document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+      document.getElementById("themeToggle").textContent = t === "light" ? "Dark mode" : "Light mode";
+    }
+    applyTheme();
+    document.getElementById("themeToggle").onclick = () => {
+      const cur = localStorage.getItem(THEME_KEY) || "dark";
+      localStorage.setItem(THEME_KEY, cur === "dark" ? "light" : "dark");
+      applyTheme();
+    };
+
+    const err = document.getElementById("err");
+    document.getElementById("f").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      err.textContent = "";
+      const btn = document.getElementById("btn");
+      btn.disabled = true;
+      try {
+        const body = {
+          username: document.getElementById("u").value.trim(),
+          password: document.getElementById("p").value,
+        };
+        const r = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.detail || r.statusText || "Login failed");
+        sessionStorage.setItem("access_token", data.access_token);
+        sessionStorage.setItem("access_token_expires_at", String(Date.now() + Number(data.expires_in_minutes || 20) * 60 * 1000));
+        window.location.href = "/admin/app";
+      } catch (x) {
+        err.textContent = x.message || String(x);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

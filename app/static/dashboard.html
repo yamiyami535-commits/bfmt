@@ -1,0 +1,961 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="blue">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bot Farm Management Tools</title>
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/theme.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+  <link rel="stylesheet" href="/static/css/animations.css" />
+  <link rel="stylesheet" href="/static/css/mobile.css" />
+  <link rel="stylesheet" href="/static/css/scheduler.css" />
+
+  <style>
+    /* -- Ticket Lookup: admin pill -- */
+    .tl-admin-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(245,158,11,0.12);
+      color: #f59e0b;
+      border: 1px solid rgba(245,158,11,0.35);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 0.6rem;
+      vertical-align: middle;
+    }
+    /* -- Step header -- */
+    .tl-step-title {
+      font-size: 0.9rem;
+      margin: 0 0 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tl-step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    /* -- Status badges -- */
+    .tl-badge {
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 2px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+    }
+    .tl-badge--ok   { background:rgba(52,211,153,0.12); color:#34d399; border-color:rgba(52,211,153,0.3); }
+    .tl-badge--warn { background:rgba(245,158,11,0.12);  color:#f59e0b; border-color:rgba(245,158,11,0.3); }
+    /* -- ID chips -- */
+    .tl-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: monospace;
+      font-size: 0.76rem;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: inherit;
+      white-space: nowrap;
+    }
+    .tl-chip__remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.95rem;
+      line-height: 1;
+      padding: 0;
+    }
+    .tl-chip__remove:hover { color: var(--fg); }
+    /* -- SQL syntax highlighting -- */
+    .tl-kw    { color:#60a5fa; font-weight:600; }
+    .tl-str   { color:#34d399; }
+    .tl-empty { color:var(--muted); font-style:italic; }
+    /* -- QB window tabs -- */
+    .qb-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .qb-tab {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--muted);
+      margin-bottom: -2px;
+      transition: background 0.15s ease, color 0.15s ease;
+      position: relative;
+    }
+    .qb-tab:hover { color: var(--text); background: var(--surface); }
+    .qb-tab.active {
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 600;
+      border-bottom: 2px solid var(--surface);
+      z-index: 1;
+    }
+    .qb-pane { display: none; }
+    .qb-pane.active { display: block; animation: fadeIn 0.15s ease; }
+
+    /* -- Ticket Insert specific -- */
+    .ti-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.85rem;
+    }
+    .ti-field label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+
+    /* Wider content area */
+    .views-wrap { max-width: 1600px !important; }
+  </style>
+</head>
+<body>
+  <div class="load-wrap" aria-hidden="true"><div id="loadBar" class="load-bar hidden"></div></div>
+
+  <div class="shell">
+    <aside class="side-nav" id="sideNav">
+      <div class="side-top">
+        <div class="side-brand" title="Bot Farm Management Tools">
+          <span class="side-brand-text">Bot Farm Management Tools</span>
+          <span class="side-brand-abbr" aria-hidden="true">BFMT</span>
+        </div>
+      </div>
+      <nav>
+        <button type="button" class="nav-item active" data-view="dash"          data-icon="📊" title="Dashboard">      <span>Dashboard</span></button>
+        <button type="button" class="nav-item"         data-view="audit"         data-icon="📋" title="Audit log">      <span>Audit log</span></button>
+        <button type="button" class="nav-item"         data-view="alerts"        data-icon="🔔" title="Alerts">         <span>Alerts</span></button>
+        <button type="button" class="nav-item"         data-view="ikb"           data-icon="📚" title="IKB">            <span>Knowledge Base</span></button>
+        <button type="button" class="nav-item"         data-view="qb"            data-icon="🔍" title="Query Builder">  <span>Query Builder</span></button>
+
+      </nav>
+    </aside>
+    <button type="button" class="btn-collapse" id="btnNavCollapse" title="Collapse sidebar">«</button>
+
+    <main class="shell-main">
+      <header class="app-topbar">
+        <h1>Admin console</h1>
+        <div class="tb-right">
+          <div class="failure-notify">
+            <button type="button" class="failure-notify-btn" id="failureNotifyBtn" aria-label="No failed bot runs in the last 2 hours" aria-expanded="false" aria-controls="failureNotifyPanel" title="Recent failed bot runs">
+              <span aria-hidden="true">&#128276;</span><span class="failure-notify-count hidden" id="failureNotifyCount"></span>
+            </button>
+            <div class="failure-notify-panel" id="failureNotifyPanel" role="region" aria-label="Recent failed bot runs">
+              <div class="failure-notify-heading">Failed runs - last 2 hours</div>
+              <div class="failure-notify-actions"><button type="button" id="failureNotifyReadAll" disabled>All read</button></div>
+              <div id="failureNotifyList"><div class="failure-notify-empty">Loading failures...</div></div>
+            </div>
+          </div>
+          <div class="accent-swatches" title="Accent (buttons & chrome; table colours stay fixed)">
+            <span>Accent</span>
+            <button type="button" class="swatch active" data-set="blue"   title="Blue"></button>
+            <button type="button" class="swatch"        data-set="violet" title="Violet"></button>
+            <button type="button" class="swatch"        data-set="teal"   title="Teal"></button>
+            <button type="button" class="swatch"        data-set="coral"  title="Coral"></button>
+            <button type="button" class="swatch"        data-set="amber"  title="Amber"></button>
+          </div>
+          <button type="button" class="ghost" id="themeToggle" title="Light / dark">Dark mode</button>
+          <div class="profile-menu">
+            <button type="button" class="profile-btn" id="profileBtn">👤 <span id="userDisplay">Profile</span></button>
+            <div class="profile-dropdown" id="profileDropdown">
+              <div class="profile-info" id="profileInfo">Loading...</div>
+              <button type="button" class="profile-dropdown-item" id="profileRole">Role: —</button>
+              <button type="button" class="profile-dropdown-item" id="profileEmail">Email: —</button>
+              <button type="button" class="profile-dropdown-item" id="out">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="views-wrap">
+
+        <!-- =================================================== DASHBOARD == -->
+        <section id="view-dash" class="view active">
+          <div class="dash-hero">
+            <div>
+              <h2>Runners overview</h2>
+              <p class="sub">Fleet health, Control Room link, and open work. Use <strong>Sick Bay</strong> for machines missing or not connected in Control Room.</p>
+            </div>
+          </div>
+          <p id="liveMeta"   class="muted" style="margin:0 0 0.65rem"></p>
+          <p id="pollStatus" class="muted" style="margin:0 0 1rem;font-style:italic"></p>
+
+          <div class="dash-tabs" role="tablist">
+            <button type="button" class="active" id="tabAll"  data-tab="all">All runners</button>
+            <button type="button"                id="tabSick" data-tab="sick">Sick Bay <span class="sick-count" id="sickCount" style="display:none;">0</span></button>
+          </div>
+
+          <div class="toolbar">
+            <button type="button" id="btnPoll"      class="primary">Refresh Control Room data</button>
+            <button type="button" id="btnManageAll" class="primary">Manage All</button>
+            <span class="muted">Auto-refresh every 8s while this tab is open.</span>
+          </div>
+
+          <div style="margin-bottom:1rem;display:flex;gap:0.75rem;align-items:center">
+            <input type="text" id="tableSearch" placeholder="Search runners by name..."
+              style="padding:0.5rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.88rem;flex:1;max-width:300px" />
+          </div>
+
+          <div class="pager">
+            <div><span id="pagerInfo">—</span></div>
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+              <label class="muted" style="display:flex;align-items:center;gap:0.35rem">Rows
+                <select id="pageSizeSel" title="Rows per page">
+                  <option value="8">8</option>
+                  <option value="12" selected>12</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="0">All</option>
+                </select>
+              </label>
+              <div class="pages" id="pagerBtns"></div>
+            </div>
+          </div>
+
+          <div class="card dash-table">
+            <div class="dash-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Runner</th>
+                    <th>Your status</th>
+                    <th>Control Room &amp; Bot Work</th>
+                    <th style="width:6.5rem">Menu</th>
+                  </tr>
+                </thead>
+                <tbody id="bots"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="actions-popover" id="actionsPopover"></div>
+
+          <details class="debug">
+            <summary>Capabilities / debug JSON</summary>
+            <pre id="cap"></pre>
+            <p class="muted" style="margin:0.45rem 0 0"><a href="/docs">API docs (Swagger)</a></p>
+          </details>
+        </section>
+
+        <!-- ==================================================== AUDIT LOG == -->
+        <section id="view-audit" class="view">
+          <h2 class="section-title">Audit log</h2>
+
+          <!-- Top-level tab bar: Audit Log | Scheduler -->
+          <div class="qb-tabs" id="auditTabBar" style="margin-bottom:1.25rem">
+            <button type="button" class="qb-tab active" data-audittab="log">📋 Audit log</button>
+            <button type="button" class="qb-tab" data-audittab="scheduler">📅 Scheduler</button>
+          </div>
+
+          <!-- -- Tab: Audit log -- -->
+          <div id="auditPane-log" class="qb-pane active">
+            <p class="muted" style="margin:0 0 1rem">Newest first. <strong>Summary</strong> describes what changed; hover a row for detail JSON.</p>
+            <div class="toolbar">
+              <button type="button" id="btnAuditRefresh" class="primary">Refresh</button>
+              <span class="muted">Loads when you open this page; refreshes every 20s while here.</span>
+            </div>
+            <div class="card audit-panel">
+              <div class="audit-table-scroll">
+                <table>
+                  <colgroup>
+                    <col class="time-col" /><col /><col class="action-col" /><col /><col /><col class="ok-col" /><col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Time</th><th>User</th><th>Action</th><th>Summary</th><th>Resource</th><th>OK</th><th>IP</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditRows"></tbody>
+                </table>
+              </div>
+            </div>
+            <p id="auditMeta" class="muted mono" style="margin-top:0.5rem"></p>
+          </div>
+
+          <!-- -- Tab: Scheduler -- (content moved from #view-scheduler) -->
+          <div id="auditPane-scheduler" class="qb-pane">
+            <div class="dash-hero" style="margin-bottom:0.85rem">
+              <div>
+                <h2 style="font-size:1.15rem;margin:0 0 0.25rem">Scheduler monitor</h2>
+                <p class="sub" style="margin:0">Task health, failure rates, and queue visibility — your DB only, no AWS cross-ref needed.</p>
+              </div>
+              <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                <button type="button" id="btnSchedRefresh" class="primary">↻ Refresh</button>
+                <span class="muted" style="font-size:0.8rem">Auto-refreshes every 30s</span>
+              </div>
+            </div>
+            <p id="schedMeta" class="muted mono" style="margin:0 0 0.85rem;font-size:0.78rem"></p>
+
+            <!-- Hero tiles -- IDs match scheduler.js updateText() calls -->
+            <div class="sched-tiles">
+              <div class="sched-tile">
+                <div class="sched-tile__label">Total (24 h)</div>
+                <div class="sched-tile__value" id="schedTileTotal">—</div>
+              </div>
+              <div class="sched-tile sched-tile--ok">
+                <div class="sched-tile__label">Completed</div>
+                <div class="sched-tile__value" id="schedTileCompleted">—</div>
+              </div>
+              <div class="sched-tile" id="schedTileFailedCard">
+                <div class="sched-tile__label">Failed</div>
+                <div class="sched-tile__value" id="schedTileFailed">—</div>
+                <div class="sched-tile__sub" id="schedTileFailPct">—</div>
+              </div>
+              <div class="sched-tile" id="schedTileStuckCard">
+                <div class="sched-tile__label">Stuck (ASSIGNED &gt;10m)</div>
+                <div class="sched-tile__value" id="schedTileStuck">—</div>
+              </div>
+              <div class="sched-tile">
+                <div class="sched-tile__label">Running now</div>
+                <div class="sched-tile__value" id="schedTileRunning">—</div>
+              </div>
+              <div class="sched-tile">
+                <div class="sched-tile__label">Pending</div>
+                <div class="sched-tile__value" id="schedTilePending">—</div>
+              </div>
+              <div class="sched-tile">
+                <div class="sched-tile__label">Avg handling</div>
+                <div class="sched-tile__value" id="schedTileAvgTime">—</div>
+              </div>
+            </div>
+
+            <!-- Inner tab bar -->
+            <div class="sched-tabs" id="schedTabBar" role="tablist">
+              <button type="button" class="sched-tab active" data-schedtab="overview">📊 Overview</button>
+              <button type="button" class="sched-tab" data-schedtab="stuck">
+                ⚠️ Stuck tasks
+                <span id="schedStuckBadge" style="display:none">0</span>
+              </button>
+              <button type="button" class="sched-tab" data-schedtab="errors">❌ Recent failures</button>
+              <button type="button" class="sched-tab" data-schedtab="main">🕐 Queue</button>
+              <button type="button" class="sched-tab" data-schedtab="sql">🗄️ SQL reference</button>
+            </div>
+
+            <!-- -- Sched Tab: Overview -- -->
+            <div id="schedPane-overview" class="sched-pane active">
+              <div style="display:flex;flex-direction:column;gap:1rem">
+                <div class="card card-pad">
+                  <h3 style="margin:0 0 0.85rem;font-size:0.9rem">Failure rate by bot (last 24 h)</h3>
+                  <div style="display:grid;grid-template-columns:220px 1fr 48px 44px;gap:0.65rem;margin-bottom:0.35rem">
+                    <span class="muted" style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.05em">Bot</span>
+                    <span class="muted" style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.05em">ok / fail / stuck</span>
+                    <span class="muted" style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Fail%</span>
+                    <span class="muted" style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.05em;text-align:right">Total</span>
+                  </div>
+                  <div id="schedByBot"><p class="muted" style="font-style:italic">Loading…</p></div>
+                  <p class="muted" style="font-size:0.75rem;margin:0.5rem 0 0">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--dt-ok);margin-right:4px"></span>Completed
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--dt-bad);margin-left:10px;margin-right:4px"></span>Failed
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--dt-warn);margin-left:10px;margin-right:4px"></span>Assigned/stuck
+                  </p>
+                </div>
+                <div class="card card-pad">
+                  <h3 style="margin:0 0 0.85rem;font-size:0.9rem">Top failure causes (last 24 h)</h3>
+                  <div class="sched-table-wrap" style="max-height:320px;overflow-y:auto">
+                    <table class="sched-table">
+                      <thead><tr><th>Error / reason</th><th>Bot</th><th style="text-align:right">Count</th></tr></thead>
+                      <tbody id="schedFailRows">
+                        <tr><td colspan="3" class="muted" style="padding:1rem;text-align:center;font-style:italic">Loading…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /schedPane-overview -->
+
+            <!-- -- Sched Tab: Stuck tasks -- -->
+            <div id="schedPane-stuck" class="sched-pane">
+              <div class="sched-table-wrap">
+                <table class="sched-table">
+                  <thead>
+                    <tr><th>ID</th><th>Bot</th><th>Runner</th><th>Assigned at</th><th>Stuck for</th></tr>
+                  </thead>
+                  <tbody id="schedStuckTbody">
+                    <tr><td colspan="5" class="muted" style="text-align:center;padding:2rem">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div><!-- /schedPane-stuck -->
+
+            <!-- -- Sched Tab: Recent errors -- -->
+            <div id="schedPane-errors" class="sched-pane">
+              <div class="sched-table-wrap">
+                <table class="sched-table">
+                  <thead>
+                    <tr><th>ID</th><th>Bot</th><th>Runner</th><th>Error</th></tr>
+                  </thead>
+                  <tbody id="schedErrorsTbody">
+                    <tr><td colspan="4" class="muted" style="text-align:center;padding:2rem">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div><!-- /schedPane-errors -->
+
+            <!-- -- Sched Tab: Queue / main table -- -->
+            <div id="schedPane-main" class="sched-pane">
+              <div style="display:flex;gap:0.65rem;align-items:center;flex-wrap:wrap;margin-bottom:0.85rem">
+                <input type="text" id="schedSearch" placeholder="Search name, runner, ID…"
+                  style="padding:0.45rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem;flex:1;max-width:280px" />
+                <select id="schedFilterStatus"
+                  style="padding:0.45rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem">
+                  <option value="ALL">All statuses</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="RUN_FAILED">Failed</option>
+                  <option value="RUNNING">Running</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="ASSIGNED">Assigned</option>
+                </select>
+              </div>
+              <p id="schedPagerInfo" class="muted" style="font-size:0.8rem;margin:0 0 0.5rem"></p>
+              <div class="card">
+                <div class="sched-table-wrap" style="max-height:520px;overflow-y:auto">
+                  <table class="sched-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th><th>Status</th><th>Bot</th><th>Type</th><th>Runner</th><th>Input</th><th>Scheduled at</th><th>Handling</th>
+                      </tr>
+                    </thead>
+                    <tbody id="schedMainTbody">
+                      <tr><td colspan="8" class="muted" style="text-align:center;padding:3rem">Loading…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="schedPagerBtns" style="display:flex;gap:0.5rem;align-items:center;margin-top:0.75rem;flex-wrap:wrap"></div>
+            </div><!-- /schedPane-main -->
+
+            <!-- -- Sched Tab: SQL reference -- -->
+            <div id="schedPane-sql" class="sched-pane">
+              <p class="muted" style="margin:0 0 1rem;font-size:0.83rem">
+                All queries run by this dashboard — your DB only. Copy any of these into
+                <strong>Query Builder</strong> to drill deeper or add extra filters.
+              </p>
+              <div style="display:flex;flex-direction:column;gap:1rem">
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Summary counts (hero tiles)</span>
+                    <button type="button" class="sched-sql-copy" data-sql="summary"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Failure rate by bot (bar chart)</span>
+                    <button type="button" class="sched-sql-copy" data-sql="byBot"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Top failure causes</span>
+                    <button type="button" class="sched-sql-copy" data-sql="topFailureCauses"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Stuck tasks</span>
+                    <button type="button" class="sched-sql-copy" data-sql="stuckTasks"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Recent failures</span>
+                    <button type="button" class="sched-sql-copy" data-sql="recentErrors"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+                <div class="card card-pad">
+                  <div class="sched-sql-header">
+                    <span class="sched-sql-title">Full queue table (last 24 h)</span>
+                    <button type="button" class="sched-sql-copy" data-sql="mainTable"
+                      style="padding:0.3rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.78rem;cursor:pointer">Copy SQL</button>
+                  </div>
+                  <pre class="sched-sql-block"></pre>
+                </div>
+
+              </div>
+            </div><!-- /schedPane-sql -->
+
+          </div><!-- /auditPane-scheduler -->
+
+        </section><!-- /view-audit -->
+
+        <!-- ==================================================== ALERTS == -->
+        <section id="view-alerts" class="view">
+          <h2 class="section-title">Alerts</h2>
+          <p class="muted" style="margin:0 0 1rem">Telegram and email for operational notifications. Secrets are stored in the hub database.</p>
+
+          <div class="card card-pad">
+            <h3 style="margin:0 0 0.75rem;font-size:0.95rem">Telegram</h3>
+            <div class="form-grid">
+              <div>
+                <label for="tgToken">Bot token</label>
+                <input id="tgToken" type="password" autocomplete="off" placeholder="Leave blank to keep current" />
+                <p id="tgTokenMasked" class="hint-line"></p>
+              </div>
+              <div><label for="tgChat">Chat ID</label><input id="tgChat" type="text" autocomplete="off" /></div>
+              <div>
+                <label for="tgTpl">Message template</label>
+                <textarea id="tgTpl" placeholder="Hub: {message}"></textarea>
+                <p class="hint-line">Use <span class="mono">{message}</span> for the alert body.</p>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+                <button type="button" id="btnTgSave" class="primary">Save Telegram</button>
+                <button type="button" id="btnTgTest">Send test</button>
+              </div>
+              <p id="tgMsg" class="mono muted"></p>
+            </div>
+          </div>
+
+          <div class="card card-pad">
+            <h3 style="margin:0 0 0.75rem;font-size:0.95rem">Email (SMTP)</h3>
+            <div class="form-grid">
+              <div><label for="emHost">SMTP host</label><input id="emHost" /></div>
+              <div><label for="emPort">SMTP port</label><input id="emPort" type="number" min="1" max="65535" /></div>
+              <div><label style="display:flex;align-items:center;cursor:pointer"><input type="checkbox" id="emTls" /> Use STARTTLS</label></div>
+              <div><label for="emUser">SMTP username</label><input id="emUser" autocomplete="off" /></div>
+              <div><label for="emPass">SMTP password</label><input id="emPass" type="password" autocomplete="off" placeholder="Leave blank to keep" /></div>
+              <div><label for="emFrom">From</label><input id="emFrom" type="email" /></div>
+              <div><label for="emTo">To</label><input id="emTo" type="email" /></div>
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+                <button type="button" id="btnEmSave" class="primary">Save email</button>
+                <button type="button" id="btnEmTest">Send test</button>
+              </div>
+              <p id="emMsg" class="mono muted"></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================================== IKB == -->
+        <section id="view-ikb" class="view">
+          <h2 class="section-title">IKB — Internal Knowledge Base</h2>
+          <p class="muted" style="margin:0 0 1.5rem">Reference documents and guides for the Bot Farm. Hosted on SharePoint.</p>
+          <div class="card card-pad" style="max-width:640px">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">📁 Bot Farm</h3>
+            <p class="muted" style="margin:0 0 0.85rem;font-size:0.83rem">
+              Standard operating procedures, queue checker, and configuration guides for the task bot.
+            </p>
+            <a href="https://daythreedigitalberhad.sharepoint.com/:f:/s/Rent-A-Bot/IgDj49nMfnTRSbsg0pvepPNQAdPw6sPn-2_7gbygkPjqqN8?e=EktpCx"
+               target="_blank" rel="noopener noreferrer" class="ikb-link-btn">Open in SharePoint ↗</a>
+          </div>
+        </section>
+
+        <!-- ================================================ QUERY BUILDER == -->
+        <section id="view-qb" class="view">
+          <h2 class="section-title">Query Builder</h2>
+
+          <!-- Window-style tabs -->
+          <div class="qb-tabs" id="qbTabBar" role="tablist">
+            <button type="button" class="qb-tab active" data-qbtab="builder" role="tab">🔍 Query Builder</button>
+            <button type="button" class="qb-tab admin-only" data-qbtab="ticketlookup" role="tab" id="qbTabTicket" style="display:none">🎫 Ticket Lookup <span class="tl-admin-pill" style="margin-left:0.3rem">Admin</span></button>
+            <button type="button" class="qb-tab admin-only" data-qbtab="ticketinsert" role="tab" id="qbTabTicketInsert" style="display:none">📝 Ticket Insert <span class="tl-admin-pill" style="margin-left:0.3rem">Admin</span></button>
+          </div>
+
+          <!-- -- Tab: Query Builder -- -->
+          <div id="qbPane-builder" class="qb-pane active">
+            <p class="muted" style="margin:0 0 1.25rem">Build custom queries against runner data. UI preview handles grid cell updates or manual SQL execution loops.</p>
+            <div id="qbRoleNotice" style="margin:0 0 1.5rem;font-size:0.83rem;background:var(--surface2);border:1px solid var(--border);padding:0.5rem 0.75rem;border-radius:6px;display:inline-block;"></div>
+
+          <div style="display:flex;flex-direction:column;gap:1rem;">
+
+            <!-- Table & columns -->
+            <div class="card card-pad">
+              <h3 style="margin:0 0 0.85rem;font-size:0.9rem">Table &amp; columns</h3>
+              <div style="display:flex;gap:0.75rem;align-items:flex-start;flex-wrap:wrap">
+                <div>
+                  <label style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">Table</label>
+                  <select id="qbTable" style="padding:0.45rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.83rem">
+                    <option value="rpa_runner">rpa_runner</option>
+                    <option value="bot_scheduler">bot_scheduler</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:0.3rem">Columns <span style="font-style:italic">(Ctrl+click to multi-select)</span></label>
+                  <select id="qbCols" multiple style="padding:0.45rem 0.7rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.83rem;height:90px;min-width:220px">
+                    <option selected>RunnerName</option>
+                    <option selected>RunnerReadableName</option>
+                    <option selected>RunnerStatus</option>
+                    <option selected>TaskBotStatus</option>
+                    <option selected>QC_Status</option>
+                    <option selected>QC_Time</option>
+                    <option selected>ControlRoomIP</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Conditions -->
+            <div class="card card-pad">
+              <h3 style="margin:0 0 0.85rem;font-size:0.9rem">Conditions</h3>
+              <div id="qbConditions" style="display:flex;flex-direction:column;gap:0.55rem"></div>
+              <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.75rem;flex-wrap:wrap">
+                <button type="button" onclick="qbAddCondition()"
+                  style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.82rem;cursor:pointer">
+                  + Add condition
+                </button>
+                <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.4rem">
+                  Logic
+                  <select id="qbLogic" style="padding:0.3rem 0.5rem;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.82rem">
+                    <option>AND</option><option>OR</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <!-- Group / Sort / Limit -->
+            <div class="card card-pad">
+              <h3 style="margin:0 0 1rem;font-size:0.9rem">Grouping, Sort &amp; Limits Configuration</h3>
+              <div style="display:flex;flex-direction:column;gap:0.9rem">
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                  <label style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;min-width:140px;cursor:pointer">
+                    <input type="checkbox" id="qbGroupToggle" style="cursor:pointer" /> <span>Group records by</span>
+                  </label>
+                  <select id="qbGroupBy" style="padding:0.35rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.82rem"></select>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                  <label style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;min-width:140px;cursor:pointer">
+                    <input type="checkbox" id="qbOrderToggle" checked style="cursor:pointer" /> <span>Order results by</span>
+                  </label>
+                  <select id="qbOrderBy"  style="padding:0.35rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.82rem"></select>
+                  <select id="qbOrderDir" style="padding:0.35rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.82rem">
+                    <option>ASC</option><option>DESC</option>
+                  </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                  <label style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;min-width:140px;cursor:pointer">
+                    <input type="checkbox" id="qbLimitToggle" checked style="cursor:pointer" /> <span>Limit row return</span>
+                  </label>
+                  <input type="number" id="qbLimit" value="50" min="1" max="5000"
+                    style="width:85px;padding:0.35rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.82rem" />
+                  <span class="muted" style="font-size:0.78rem;font-style:italic">(UI caps requests safely to optimize pagination viewports)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SQL Preview -->
+            <div class="card card-pad">
+              <h3 style="margin:0 0 0.75rem;font-size:0.9rem">Generated SQL Preview</h3>
+              <pre id="qbSqlPreview" contenteditable="true"
+                style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:monospace;font-size:0.82rem;white-space:pre-wrap;word-break:break-all;margin:0;min-height:72px;line-height:1.6"></pre>
+              <div style="display:flex;gap:0.5rem;margin-top:0.85rem;flex-wrap:wrap;align-items:center">
+                <button type="button" id="btnQbRun" class="primary" onclick="qbRunQuery()">▶ Run query</button>
+                <button type="button" onclick="qbCopySQL(this)"
+                  style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.82rem;cursor:pointer">
+                  Copy SQL
+                </button>
+                <span style="flex:1"></span>
+                <button type="button" onclick="qbReset()"
+                  style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.82rem;cursor:pointer">
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <!-- Results grid -->
+            <div id="qbResultsCard" class="card card-neon animate-fade-in" style="display:none;margin-top:1.5rem;padding:1.25rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;border-bottom:1px solid var(--border);padding-bottom:0.75rem;margin-bottom:1rem;">
+                <div>
+                  <h3 id="qbResultsTitle" style="margin:0;font-size:1.1rem;">Interactive Results Grid</h3>
+                  <p id="qbResultsMsg" class="muted" style="margin:0.25rem 0 0;font-size:0.8rem;"></p>
+                </div>
+                <button type="button" id="btnQbSaveGrid" onclick="window.qbSaveChangesBatch()" disabled
+                  style="background:#f59e0b;color:#000;font-weight:600;padding:0.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;">
+                  💾 Save Changes to Database
+                </button>
+              </div>
+
+              <div id="qbInteractiveGridToolbar"
+                style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:0.6rem 1rem;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;font-size:0.85rem;">
+                <span style="font-weight:600;color:var(--muted);">⚡ Bulk Edit Highlighted Rows:</span>
+                <span style="margin-left:0.5rem;">Set column</span>
+                <select id="qbBulkColumnSelect" style="padding:0.3rem 0.5rem;background:var(--surface1);border:1px solid var(--border);border-radius:4px;color:inherit;font-size:0.82rem;"></select>
+                <span>to value</span>
+                <input type="text" id="qbBulkValueInput" placeholder="New value string"
+                  style="padding:0.3rem 0.5rem;background:var(--surface1);border:1px solid var(--border);border-radius:4px;color:inherit;font-size:0.82rem;width:160px;" />
+                <button type="button" onclick="window.qbApplyBulkEdit()"
+                  style="background:var(--accent);color:#fff;font-weight:500;padding:0.33rem 0.75rem;border:none;border-radius:4px;cursor:pointer;">
+                  Apply to Selected
+                </button>
+                <span style="border-left:1px solid var(--border);height:20px;margin:0 0.5rem;"></span>
+                <button type="button" onclick="window.qbExportCurrent()"
+                  style="background:var(--surface1);border:1px solid var(--border);color:inherit;font-weight:500;padding:0.33rem 0.75rem;border-radius:4px;cursor:pointer;">
+                  📥 Export Grid to CSV
+                </button>
+                <span style="flex:1"></span>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                  <button type="button" onclick="window.qbPrevPage()"
+                    style="background:var(--surface1);border:1px solid var(--border);color:inherit;padding:0.33rem 0.6rem;border-radius:4px;cursor:pointer;font-weight:600;">◀ Prev</button>
+                  <span id="qbPageDisplay" style="font-weight:600;color:var(--muted);">Page 1</span>
+                  <button type="button" onclick="window.qbNextPage()"
+                    style="background:var(--surface1);border:1px solid var(--border);color:inherit;padding:0.33rem 0.6rem;border-radius:4px;cursor:pointer;font-weight:600;">Next ▶</button>
+                </div>
+              </div>
+
+              <div id="qbResultsContainer"></div>
+            </div>
+
+          </div>
+          </div><!-- /qbPane-builder -->
+
+          <!-- -- Tab: Ticket Lookup -- -->
+          <div id="qbPane-ticketlookup" class="qb-pane">
+            <p class="muted" style="margin:0 0 1.5rem">
+              Paste raw ticket data — tab-separated rows, bullet lists, or bare IDs.
+              The extractor finds every <code>YYYYMMDD-NNNNN-NNNN</code> pattern,
+              lets you review and trim the list, then fires a
+              <code>WHERE sTicketID IN (…)</code> query straight into the Query Builder grid.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+
+              <!-- Step 1: Paste -->
+              <div class="card card-pad">
+                <h3 class="tl-step-title"><span class="tl-step-num">1</span> Paste raw data</h3>
+                <label for="tlPaste" style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem">
+                  Accepts tab-separated rows, bullet lists (<code>* ID …</code>), or bare IDs — one per line.
+                </label>
+                <textarea id="tlPaste" rows="7"
+                  style="width:100%;font-family:monospace;font-size:0.8rem;padding:0.6rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;resize:vertical;line-height:1.55"
+                  placeholder="20260606-00602-9183&#9;Request to Unsubscribe - Voicemail (RPA)&#9;60167349183&#9;…&#10;* 20260606-00620-2686&#10;20260606-00610-1932"></textarea>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.65rem">
+                  <button type="button" id="tlExtractBtn" class="primary">⚡ Extract IDs</button>
+                  <button type="button" id="tlClearAllBtn"
+                    style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.82rem;cursor:pointer">
+                    Clear all
+                  </button>
+                  <span id="tlExtractBadge" class="tl-badge" style="display:none"></span>
+                </div>
+              </div>
+
+              <!-- Step 2: Review chips -->
+              <div id="tlIdsSection" class="card card-pad" style="display:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;flex-wrap:wrap;gap:0.5rem">
+                  <h3 class="tl-step-title" style="margin:0">
+                    <span class="tl-step-num">2</span>
+                    Review extracted IDs
+                    <span id="tlIdCount" class="tl-badge tl-badge--ok" style="margin-left:0.4rem;font-size:0.72rem"></span>
+                  </h3>
+                  <div style="display:flex;gap:0.5rem">
+                    <button type="button" id="tlCopyListBtn"
+                      style="padding:0.33rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.79rem;cursor:pointer">
+                      Copy ID list
+                    </button>
+                    <button type="button" id="tlClearIdsBtn"
+                      style="padding:0.33rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.79rem;cursor:pointer">
+                      Clear IDs
+                    </button>
+                  </div>
+                </div>
+                <div id="tlChipWrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0.75rem"></div>
+                <details style="margin-top:0.4rem">
+                  <summary style="font-size:0.79rem;color:var(--muted);cursor:pointer;user-select:none">
+                    Plain list (paste into QB condition value)
+                  </summary>
+                  <pre id="tlPlainList"
+                    style="margin:0.5rem 0 0;padding:0.6rem 0.75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-size:0.76rem;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto;line-height:1.65"></pre>
+                </details>
+              </div>
+
+              <!-- Step 3: Run -->
+              <div class="card card-pad">
+                <h3 class="tl-step-title"><span class="tl-step-num">3</span> Run query</h3>
+                <label style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem">Generated SQL</label>
+                <pre id="tlSqlBox"
+                  style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem;font-family:monospace;font-size:0.8rem;white-space:pre-wrap;word-break:break-all;margin:0 0 0.85rem;min-height:72px;line-height:1.65;user-select:all"><span class="tl-empty">Paste and extract ticket IDs above to generate a query.</span></pre>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                  <button type="button" id="tlRunBtn" class="primary" disabled>▶ Run in Query Builder</button>
+                  <button type="button" id="tlCopySqlBtn" disabled
+                    style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:inherit;font-size:0.82rem;cursor:pointer">
+                    Copy SQL
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div><!-- /qbPane-ticketlookup -->
+
+          <!-- -- Tab: Ticket Insert -- -->
+          <div id="qbPane-ticketinsert" class="qb-pane">
+            <p class="muted" style="margin:0 0 1.5rem">
+              Manually create a <code>bot_scheduler</code> row for a ticket that didn't make it
+              into the automated queue. Pick the company, scenario, and channel — the form
+              below adapts to show only the fields that scenario actually needs. Runner,
+              RunnerID, and Control Room IP are always pulled live from the runner you select.
+            </p>
+
+            <form id="tiForm" style="display:flex;flex-direction:column;gap:1rem;">
+
+              <!-- Step 1: Company / Scenario / Channel -->
+              <div class="card card-pad">
+                <h3 class="tl-step-title"><span class="tl-step-num">1</span> Company, scenario &amp; channel</h3>
+                <div class="ti-grid">
+                  <div class="ti-field">
+                    <label for="tiCompany">Company</label>
+                    <select id="tiCompany" required
+                      style="padding:0.45rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem;width:100%">
+                      <option value="">Loading companies…</option>
+                    </select>
+                  </div>
+                  <div class="ti-field">
+                    <label for="tiScenario">Scenario</label>
+                    <select id="tiScenario" required disabled
+                      style="padding:0.45rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem;width:100%">
+                      <option value="">Select company first…</option>
+                    </select>
+                  </div>
+                  <div class="ti-field">
+                    <label for="tiChannel">Channel</label>
+                    <select id="tiChannel" required disabled
+                      style="padding:0.45rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem;width:100%">
+                      <option value="">Select scenario first…</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: Runner -->
+              <div class="card card-pad">
+                <h3 class="tl-step-title"><span class="tl-step-num">2</span> Runner</h3>
+                <p class="muted" style="margin:0 0 0.65rem;font-size:0.79rem">
+                  RunnerID and Control Room IP are looked up live from this selection at submit time —
+                  never hardcoded per scenario.
+                </p>
+                <div class="ti-field" style="max-width:360px">
+                  <label for="tiRunner">Runner</label>
+                  <select id="tiRunner" required
+                    style="padding:0.45rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:inherit;font-size:0.85rem;width:100%">
+                    <option value="">Loading runners…</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Step 3: Dynamic scenario fields -->
+              <div class="card card-pad">
+                <h3 class="tl-step-title"><span class="tl-step-num">3</span> Ticket details</h3>
+                <div id="tiDynamicFields" class="ti-grid">
+                  <p class="muted" style="font-style:italic">Select company, scenario, and channel above to load the required fields.</p>
+                </div>
+              </div>
+
+              <!-- Submit -->
+              <div id="tiSubmitRow" style="display:none;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                <button type="submit" id="tiSubmitBtn" class="primary">📝 Insert ticket</button>
+                <button type="button" id="tiResetBtn"
+                  style="padding:0.4rem 0.85rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.82rem;cursor:pointer">
+                  Reset
+                </button>
+              </div>
+
+              <div id="tiResultBox" style="display:none"></div>
+
+            </form>
+          </div><!-- /qbPane-ticketinsert -->
+
+        </section><!-- /view-qb -->
+
+
+        <!-- ==================================================================================== -->
+      </div><!-- /views-wrap -->
+    </main>
+  </div><!-- /shell -->
+
+  <div id="sessionExpiredModal" class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="sessionExpiredTitle" aria-describedby="sessionExpiredMessage">
+    <div class="modal-content session-expired-content">
+      <h2 id="sessionExpiredTitle">Session expired</h2>
+      <p id="sessionExpiredMessage">For your security, your sign-in expired after 20 minutes. Sign in again to continue.</p>
+      <div class="modal-actions">
+        <button type="button" id="sessionExpiredSignIn" class="primary">Sign in again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="manageAllModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Manage All Machines</h2>
+      <p>Select the action to perform on all machines:</p>
+      <div class="modal-actions">
+        <button type="button" id="btnRestartAll" class="primary">Restart All</button>
+        <button type="button" id="btnDisableAll" class="danger">Disable All</button>
+        <button type="button" id="btnCloseModal" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/dashboard/core.js"></script>
+
+  <script type="text/javascript">
+    // -- QB inner tab switching ----------------------------------------------
+    document.getElementById("qbTabBar").addEventListener("click", (e) => {
+      const tab = e.target.closest(".qb-tab");
+      if (!tab) return;
+      const target = tab.dataset.qbtab;
+      document.querySelectorAll(".qb-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".qb-pane").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("qbPane-" + target).classList.add("active");
+    });
+
+    // -- Sidebar collapse ------------------------------------------------------
+    document.getElementById("btnNavCollapse").addEventListener("click", () => {
+      const sidebar = document.getElementById("sideNav");
+      const shell   = sidebar.closest(".shell");
+      sidebar.classList.toggle("collapsed");
+      shell.classList.toggle("nav-collapsed");
+      const isCollapsed = sidebar.classList.contains("collapsed");
+      document.getElementById("btnNavCollapse").textContent = isCollapsed ? "»" : "«";
+    });
+
+    document.getElementById("sessionExpiredSignIn").addEventListener("click", () => {
+      window.location.replace("/admin");
+    });
+
+    // -- Manage All modal ------------------------------------------------------
+    document.getElementById("btnManageAll").addEventListener("click", () => {
+      document.getElementById("manageAllModal").classList.remove("hidden");
+    });
+    document.getElementById("btnCloseModal").addEventListener("click", () => {
+      document.getElementById("manageAllModal").classList.add("hidden");
+    });
+  </script>
+  <script src="/static/js/mobile-nav.js"></script>
+</body>
+</html>
