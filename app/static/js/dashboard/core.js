@@ -1,7 +1,7 @@
 ﻿import { checkAuth, api, authHeaders, showSessionExpiredModal, isSessionExpiredError } from '../utils.js';
 import { loadAudit } from './audit.js';
 import { loadAlertForms, initAlertsEvents } from './alerts.js';
-import { initQueryBuilder } from './queryBuilder.js';
+import { initQueryBuilder } from './queryBuilder.js?v=20261124-resize2';
 import { startDashRefresh, stopDashRefresh, refreshLive, initRunnersEvents, liveCache, dashTab, setDashTab, setDashPage } from './runners.js';
 import { startSchedRefresh, stopSchedRefresh, initSchedulerEvents } from './scheduler.js';
 
