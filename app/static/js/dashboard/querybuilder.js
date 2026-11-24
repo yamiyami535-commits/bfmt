@@ -616,7 +616,7 @@ function renderGridPage() {
           <th class="qb-select-column">
             <input type="checkbox" id="qbSelectAllRows" onchange="window.toggleSelectAllRows(this)" />
           </th>
-          ${cols.map((c, i) => `<th class="qb-results-th"><span>${escapeHtml(c)}</span><span class="qb-column-resizer" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeHtml(c)} column" data-column-index="${i + 1}" title="Drag to resize"></span></th>`).join("")}
+          ${cols.map((c, i) => `<th class="qb-results-th"><span>${escapeHtml(c)}</span><span class="qb-column-resizer" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeHtml(c)} column" data-column-index="${i + 1}" title="Drag \\u2194 to resize this column"></span></th>`).join("")}
         </tr>
       </thead>
       <tbody>
