@@ -21,6 +21,71 @@ let activeQueryContext = { table: null, sql: null, source: "builder" }; // sourc
 // Client Pagination Tracking
 let qbCurrentPage = 1;
 const qbPageSize = 10;
+const QB_COLUMN_WIDTHS_KEY = "qb_results_column_widths_v1";
+
+function loadQbColumnWidths() {
+  try {
+    const value = JSON.parse(localStorage.getItem(QB_COLUMN_WIDTHS_KEY) || "{}");
+    return value && typeof value === "object" ? value : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveQbColumnWidths(widths) {
+  try { localStorage.setItem(QB_COLUMN_WIDTHS_KEY, JSON.stringify(widths)); } catch (_) {}
+}
+
+function defaultQbColumnWidth(name) {
+  const col = String(name).toLowerCase();
+  if (col === "bot_input") return 420;
+  if (col.includes("remarks") || col.includes("message")) return 320;
+  if (col === "id") return 88;
+  return 190;
+}
+
+function attachQbColumnResizers(table, columns) {
+  if (!table) return;
+  const colElements = table.querySelectorAll("colgroup col");
+  const widths = loadQbColumnWidths();
+  table.querySelectorAll(".qb-column-resizer").forEach(handle => {
+    handle.addEventListener("pointerdown", event => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      event.preventDefault();
+      const colIndex = Number(handle.dataset.columnIndex);
+      const colElement = colElements[colIndex];
+      const columnName = columns[colIndex - 1];
+      if (!colElement || !columnName) return;
+
+      const startX = event.clientX;
+      const startWidth = colElement.getBoundingClientRect().width;
+      let currentWidth = startWidth;
+      document.body.classList.add("qb-column-resizing");
+
+      const onMove = moveEvent => {
+        currentWidth = Math.max(96, Math.min(1400, startWidth + moveEvent.clientX - startX));
+        colElement.style.width = `${currentWidth}px`;
+      };
+      const onStop = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onStop);
+        document.removeEventListener("pointercancel", onStop);
+        document.body.classList.remove("qb-column-resizing");
+        widths[columnName] = Math.round(currentWidth);
+        saveQbColumnWidths(widths);
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onStop, { once: true });
+      document.addEventListener("pointercancel", onStop, { once: true });
+    });
+  });
+}
+
+function resetQbColumnWidths() {
+  try { localStorage.removeItem(QB_COLUMN_WIDTHS_KEY); } catch (_) {}
+  renderGridPage();
+}
 
 // ─── Ticket Lookup State ───────────────────────────────────────────────────────
 const TICKET_PATTERN = /\b\d{8}-\d{4,6}-\d{1,6}\b/g;
@@ -86,6 +151,7 @@ export async function initQueryBuilder() {
   window.qbRunQuery        = runQuery;
   window.qbCopySQL         = copySQL;
   window.qbExportCurrent   = () => downloadCSV(fullQueryRowsCache, "full_result_set");
+  window.qbResetColumnWidths = resetQbColumnWidths;
   window.qbReset           = reset;
   window.qbApplyBulkEdit   = applyBulkEdit;
   window.qbSaveChangesBatch = saveChangesBatch;
@@ -535,14 +601,22 @@ function renderGridPage() {
     pageDisplay.textContent = `Rows ${startIdx + 1}-${endIdx} of ${totalRows} (Page ${qbCurrentPage}/${totalPages})`;
   }
 
+  const savedWidths = loadQbColumnWidths();
   let tableHtml = `
-    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
-      <thead style="background:var(--surface2)">
+    <table class="qb-results-table">
+      <colgroup>
+        <col style="width:46px">
+        ${cols.map(c => {
+          const width = Math.max(96, Math.min(1400, Number(savedWidths[c]) || defaultQbColumnWidth(c)));
+          return `<col data-qb-column="${escapeHtml(c)}" style="width:${width}px">`;
+        }).join("")}
+      </colgroup>
+      <thead>
         <tr>
-          <th style="width:40px;padding:0.5rem;border-bottom:1px solid var(--border);text-align:center;">
+          <th class="qb-select-column">
             <input type="checkbox" id="qbSelectAllRows" onchange="window.toggleSelectAllRows(this)" />
           </th>
-          ${cols.map(c => `<th style="text-align:left;padding:0.5rem 0.75rem;border-bottom:1px solid var(--border);color:var(--muted);font-size:0.75rem;text-transform:uppercase;white-space:nowrap">${escapeHtml(c)}</th>`).join("")}
+          ${cols.map((c, i) => `<th class="qb-results-th"><span>${escapeHtml(c)}</span><span class="qb-column-resizer" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeHtml(c)} column" data-column-index="${i + 1}" title="Drag to resize"></span></th>`).join("")}
         </tr>
       </thead>
       <tbody>
@@ -571,13 +645,12 @@ function renderGridPage() {
         tableHtml += `<td style="padding:0.45rem 0.75rem;font-size:0.82rem;color:var(--muted);background:var(--surface1);white-space:nowrap">${escapeHtml(String(displayValue || "—"))}</td>`;
       } else {
         const inputStyles = isCellDirty
-          ? `background:rgba(245,158,11,0.08);border:1px solid #f59e0b;color:inherit;font-size:0.82rem;width:100%;padding:0.25rem 0.4rem;border-radius:4px;`
-          : `background:transparent;border:1px solid transparent;color:inherit;font-size:0.82rem;width:100%;padding:0.25rem 0.4rem;border-radius:4px;transition:all 0.15s;`;
+          ? `background:rgba(245,158,11,0.08);border:1px solid #f59e0b;color:inherit;`
+          : `background:transparent;border:1px solid transparent;color:inherit;transition:all 0.15s;`;
 
         tableHtml += `
-          <td style="padding:0.25rem 0.5rem;white-space:nowrap">
-            <input type="text"
-              value="${escapeHtml(String(displayValue))}"
+          <td class="qb-results-cell">
+            <textarea rows="2"
               class="qb-cell-input ${isCellDirty ? "dirty" : ""}"
               data-row="${globalIdx}"
               data-col="${escapeHtml(c)}"
@@ -585,7 +658,7 @@ function renderGridPage() {
               style="${inputStyles}"
               onfocus="this.style.background='var(--surface2)';this.style.borderColor='var(--border)';"
               onblur="if(!this.classList.contains('dirty')){this.style.background='transparent';this.style.borderColor='transparent';}"
-            />
+            >${escapeHtml(String(displayValue))}</textarea>
           </td>`;
       }
     });
@@ -595,6 +668,7 @@ function renderGridPage() {
 
   tableHtml += `</tbody></table>`;
   gridContainer.innerHTML = tableHtml;
+  attachQbColumnResizers(gridContainer.querySelector(".qb-results-table"), cols);
 
   window.toggleSelectAllRows = (master) => {
     document.querySelectorAll(".qb-row-select-checkbox").forEach(cb => {
@@ -610,7 +684,7 @@ function renderGridPage() {
   };
 
   window.handleRowRowClick = (index, event) => {
-    if (event.target.type === "checkbox" || event.target.tagName === "INPUT") return;
+    if (event.target.type === "checkbox" || ["INPUT", "TEXTAREA", "BUTTON"].includes(event.target.tagName)) return;
     const checkboxes = Array.from(document.querySelectorAll(".qb-row-select-checkbox"));
     const targetCb   = checkboxes.find(c => parseInt(c.dataset.index, 10) === index);
     if (!targetCb) return;
